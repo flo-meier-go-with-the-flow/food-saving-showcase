@@ -11,6 +11,7 @@ import mlflow.sklearn
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from hyperopt import fmin, hp, tpe, Trials, space_eval, STATUS_OK
+import statsmodels
 
 
 def eval_metrics(actual, pred):
@@ -38,6 +39,9 @@ if __name__ == '__main__':
 
     pickle_path = os.path.join('..', '..', 'data', 'features_by_date')
     features_by_date = pd.read_pickle(pickle_path)
+    ##Drop NAN rows
+    features_by_date.dropna(axis=0, inplace=True)
+
 
     # create datelist
     # we remove Saturday and Sundays and Public holidays by checking that at least 25 people are around

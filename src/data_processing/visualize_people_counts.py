@@ -24,6 +24,9 @@ def date_string_to_weekday(date_string):
 if __name__ == '__main__':
     plot_by_dates = False
     plot_quantiles_per_weekday=False
+    plot_overview_week=False
+    plot_overview_scatter_year=False
+    plot_weekday_samples=False
 
     csv_path = os.path.join('..', '..', 'data', 'flow_counts_preprocessed.csv')
     df = pd.read_csv(csv_path)
@@ -63,8 +66,10 @@ if __name__ == '__main__':
             plt.clf()
 
     # plot mean and quantiles for every weekday
+    plot_quantiles_per_weekday=True
     if plot_quantiles_per_weekday:
         day_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
         for weekday in day_list:
 
             mean_values = df[df['weekday'].isin([weekday])].groupby('time_numeric')['num_people_inside'].aggregate([np.mean])
@@ -85,46 +90,115 @@ if __name__ == '__main__':
             plt.legend(['mean_values', 'quantile_90', 'quantile_10', 'quantile_75', 'quantile_25'])
             plt.ylim(0,300)
             plt.axvline(x=12.33, ymin=0, ymax=300,linewidth=0.5, label='12:20') #12:20 is (empirically found) the time with minimal num people in office
+            plt.axvline(x=11.5, ymin=0, ymax=300, linewidth=0.5, label='11:30')
             plt.axvline(x=10.0, ymin=0, ymax=300,linewidth=0.5, label='10:00') #10:00 is the time mensa needs to know the number of meals to cook
             plt.xlim(0,24)
-            plt.xticks([4,6,8,10,12,14,16,18,20,22])
+            plt.xticks([4,6,8,10,11,12,13,14,16,18,20,22])
+            plt.xlabel('time')
+            plt.ylabel('number people')
             fig_title = 'Average num people inside on ' + weekday
             plt.title(fig_title)
             fig_id = 'average_num_people_inside_on_' + weekday
             save_fig(fig_id)
             plt.clf()
 
+    #plot weekday samples
+    plot_weekday_samples=True
+    if plot_weekday_samples:
+        day_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
-            #plot num people inside trajectories
+        for weekday in day_list:
+            mean_values = df[df['weekday'].isin([weekday])].groupby('time_numeric')['num_people_inside'].aggregate(
+                [np.mean])
+            # quantile_90 = df[df['weekday'].isin([weekday])].groupby('time_numeric')['num_people_inside'].aggregate(np.percentile,q=90)
+            # quantile_10 = df[df['weekday'].isin([weekday])].groupby('time_numeric')['num_people_inside'].aggregate(np.percentile,q=10)
+            plt.plot(mean_values)
+            # plt.plot(quantile_90)
+            # plt.plot(quantile_10)
+            plt.legend(['mean_values'])
+            samples = list(df[df['weekday'].isin([weekday])]['date'].sample(n=7, random_state=42))
+            for sample in samples:
+                df_to_plot = df[(df['weekday'].isin([weekday])) & (df['date'] == sample)][
+                    ['time_numeric', 'num_people_inside']].set_index('time_numeric')
+                plt.plot(df_to_plot)
+
+            plt.ylim(0,300)
+            plt.axvline(x=12.33, ymin=0, ymax=300,linewidth=0.5, label='12:20') #12:20 is (empirically found) the time with minimal num people in office
+            plt.axvline(x=11.5, ymin=0, ymax=300,linewidth=0.5, label='11:30') #10:00 is the time mensa needs to know the number of meals to cook
+            plt.axvline(x=10.0, ymin=0, ymax=300,linewidth=0.5, label='10:00') #10:00 is the time mensa needs to know the number of meals to cook
+            plt.xlim(0,24)
+            plt.xticks([4,6,8,10,11,12,13,14,16,18,20,22])
+            plt.xlabel('time')
+            plt.ylabel('number people')
+            fig_title = 'Sample days ' + weekday
+            plt.title(fig_title)
+            fig_id = '0_sample_days_' + weekday
+            save_fig(fig_id)
+            plt.clf()
+
+
+    # plot overview week
+    plot_overview_week=True
+    if plot_overview_week:
+        day_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+        for weekday in day_list:
+
+            mean_values = df[df['weekday'].isin([weekday])].groupby('time_numeric')['num_people_inside'].aggregate([np.mean])
+            plt.plot(mean_values)
+
+        plt.legend(day_list)
+        plt.ylim(0,300)
+        plt.axvline(x=12.33, ymin=0, ymax=300,linewidth=0.5, label='12:20') #12:20 is (empirically found) the time with minimal num people in office
+        plt.axvline(x=11.50, ymin=0, ymax=300,linewidth=0.5, label='11:30') #max morning
+        plt.axvline(x=10.0, ymin=0, ymax=300,linewidth=0.5, label='10:00') #10:00 is the time mensa needs to know the number of meals to cook
+        plt.annotate('10:00', xy=(10.0, 290), xytext=(4, 285),
+                    arrowprops=dict(facecolor='black',width=0.5,headwidth=3,headlength=3, shrink=0.0))
+        plt.annotate('11:30', xy=(11.5, 270), xytext=(4, 265),
+                    arrowprops=dict(facecolor='black',width=0.5,headwidth=3,headlength=3, shrink=0.0))
+        plt.annotate('12:20', xy=(12.33, 250), xytext=(4, 245),
+                    arrowprops=dict(facecolor='black',width=0.5,headwidth=3,headlength=3, shrink=0.0))
+        plt.xlim(0,24)
+        plt.xticks([4,6,8,10,11,12,13,14,16,18,20,22])
+        plt.xlabel('time')
+        plt.ylabel('number people')
+        fig_title = 'Average num people inside'
+        plt.title(fig_title)
+        fig_id = '0_average_num_people_inside'
+        save_fig(fig_id)
+        plt.clf()
 
 
 
-    pickle_path = os.path.join('..', '..', 'data', 'num_people_by_date')
-    num_people_by_date = pd.read_pickle(pickle_path)
-    num_people_by_date['date'] = num_people_by_date.index
-    num_people_by_date['weekday'] = num_people_by_date['date'].apply(date.weekday)
-    num_people_workdays=num_people_by_date[num_people_by_date['num_people_at_12_33']>30]
 
-    for i in [0,1,2,3,4]:
-        df_to_plot=num_people_workdays[num_people_workdays['weekday']==i]
-        plt.scatter(df_to_plot.index,df_to_plot['num_people_at_12_33'])
-    plt.legend(['Mon', 'Tue', 'Wed','Thu','Fri'])
+    #plot num people inside trajectories
+    if plot_overview_scatter_year:
+        pickle_path = os.path.join('..', '..', 'data', 'num_people_by_date')
+        num_people_by_date = pd.read_pickle(pickle_path)
+        num_people_by_date['date'] = num_people_by_date.index
+        num_people_by_date['weekday'] = num_people_by_date['date'].apply(date.weekday)
+        num_people_workdays=num_people_by_date[num_people_by_date['num_people_at_12_33']>30]
 
-    fig_title = 'num people inside at 12:20'
-    plt.title(fig_title)
-    fig_id = '0_overview_num_people_inside_12_33'
-    save_fig(fig_id)
-    plt.clf()
+        for i in [0,1,2,3,4]:
+            df_to_plot=num_people_workdays[num_people_workdays['weekday']==i]
+            plt.scatter(df_to_plot.index,df_to_plot['num_people_at_12_33'])
+        plt.legend(['Mon', 'Tue', 'Wed','Thu','Fri'])
 
-    for i in [0,1,2,3,4]:
-        df_to_plot=num_people_workdays[num_people_workdays['weekday']==i]
-        plt.scatter(df_to_plot.index,df_to_plot['normalized_difference_10_and_12'])
-    plt.legend(['Mon', 'Tue', 'Wed','Thu','Fri'])
+        fig_title = 'num people inside at 12:20'
+        plt.title(fig_title)
+        fig_id = '0_overview_num_people_inside_12_33'
+        save_fig(fig_id)
+        plt.clf()
 
-    fig_title = '(numpeople_at_10 - num_people_at_12)/numpeople_at_10'
-    plt.title(fig_title)
-    fig_id = '0_overview_normalized_difference_10_and_12'
-    save_fig(fig_id)
-    plt.clf()
+        for i in [0,1,2,3,4]:
+            df_to_plot=num_people_workdays[num_people_workdays['weekday']==i]
+            plt.scatter(df_to_plot.index,df_to_plot['normalized_difference_10_and_12'])
+        plt.legend(['Mon', 'Tue', 'Wed','Thu','Fri'])
+
+        fig_title = '(numpeople_at_10 - num_people_at_12)/numpeople_at_10'
+        plt.title(fig_title)
+        fig_id = '0_overview_normalized_difference_10_and_12'
+        save_fig(fig_id)
+        plt.clf()
 
 
