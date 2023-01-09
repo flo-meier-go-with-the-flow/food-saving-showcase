@@ -16,6 +16,16 @@ Make a dataframe that contains the labels and relevant features:
  - num people leaving for lunch elsewhere on previous days/weeks
  - Num people enter before 10 binned by hour
 
+# App
+- Flask
+- Download data everyday at 11:30
+  - Check out sched
+  - https://docs.python.org/3/library/sched.html
+  - Check out cronitor
+  - https://crontab.guru/#0_12_*_*_*
+  - Check out GCP Cloud scheduler
+  - https://cloud.google.com/scheduler/docs/schedule-run-cron-job
+
 
 # Bug Fixing
 

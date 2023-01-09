@@ -36,8 +36,8 @@ def objective(params):
     return {'loss': rmse, 'status': STATUS_OK}
 
 
-def train_sarimax_model(features_by_date, p=1, d=0, q=1, Ps=0, Ds=1, Qs=1, s=5, train_test_boundary=150,
-                        exog_feature_list=[]):
+def train_sarimax_model(features_by_date, p=1, d=0, q=1, Ps=0, Ds=1, Qs=1, s=5, train_test_boundary=(150,202),
+                        exog_feature_list=[], compute_train_error=True):
     order = (p, d, q)
     seasonal_order = (Ps, Ds, Qs, s)
     print(f'params: {order}, {seasonal_order}')
@@ -45,7 +45,7 @@ def train_sarimax_model(features_by_date, p=1, d=0, q=1, Ps=0, Ds=1, Qs=1, s=5, 
     log_predictions = []
     coefficients = []
 
-    test_set = range(train_test_boundary, len(features_by_date))
+    test_set = range(train_test_boundary[0], train_test_boundary[1])
     for i in test_set:
         df = features_by_date['log_num_people_11_30']
         exog = features_by_date[exog_feature_list]
@@ -55,13 +55,13 @@ def train_sarimax_model(features_by_date, p=1, d=0, q=1, Ps=0, Ds=1, Qs=1, s=5, 
         log_predictions.append(res.predict(n_periods=1, X=exog[i:i + 1])[0])
 
         # compute train error
-        if i == test_set[-1]:
+        if (i == test_set[-1]) and compute_train_error:
             train_predictions = res.predict_in_sample(X=exog, start=test_set[0], end=i - 1)
             labels = features_by_date.iloc[test_set[:-1]]["log_num_people_11_30"]
             print(f'Train_log_error: {eval_metrics(labels, train_predictions)}')
             print(f'Train_error: {eval_metrics(np.exp(labels), np.exp(train_predictions))}')
-    log_errors = eval_metrics(features_by_date.iloc[test_set]['log_num_people_11_30'], np.array(log_predictions))
     predictions = np.exp(np.array(log_predictions))
+    log_errors = eval_metrics(features_by_date.iloc[test_set]['log_num_people_11_30'], np.array(log_predictions))
     errors = eval_metrics(features_by_date.iloc[test_set]['filled_num_people_11_30'], predictions)
 
     print(f'Test_log_error: {log_errors}')
@@ -70,7 +70,21 @@ def train_sarimax_model(features_by_date, p=1, d=0, q=1, Ps=0, Ds=1, Qs=1, s=5, 
 
     return errors, res.aic(), log_errors, res, predictions
 
-
+def train_sarimax_mdoel_for_prediction(features_by_date, prediction_boundary=(150,155), p=1, d=0, q=1, Ps=0, Ds=1, Qs=1, s=5,
+                        exog_feature_list=[], compute_train_error=True):
+    """ returns the predictions for the horizon defined by the predictions boundary
+    prediction_boundary: integer index for where to make predictions
+    """
+    order = (p, d, q)
+    seasonal_order = (Ps, Ds, Qs, s)
+    log_predictions = []
+    endog = features_by_date['log_num_people_11_30']
+    exog = features_by_date[exog_feature_list]
+    sarimax_model = ARIMA(order=order, seasonal_order=seasonal_order, suppress_warnings=True)
+    res = sarimax_model.fit(y=endog.iloc[:prediction_boundary[0]], X=exog.iloc[:prediction_boundary[0]])
+    log_predictions=res.predict(n_periods=prediction_boundary[1]-prediction_boundary[0], X=exog[prediction_boundary[0]:prediction_boundary[1]])
+    predictions = np.exp(np.array(log_predictions))
+    return predictions
 def num_menus_sold_error(predictions, train_test_boundary, features_df):
     with open(os.path.join('pickled_models', 'label_num_people_11_30_to_label_num_menus_sold.pkl'),
               'rb') as file:  # num_features[0] + '_to_' + label[0] + '
@@ -78,12 +92,12 @@ def num_menus_sold_error(predictions, train_test_boundary, features_df):
     num_features = ['label_num_people_11_30']  # ,'temp_deviation', 'Temperature', 'Rain Duration']
     cat_features = []  # 'weekday']
     bin_features = []
-    df_predictions = pd.DataFrame(index=features_df.iloc[train_test_boundary:].index, data=predictions,
+    df_predictions = pd.DataFrame(index=features_df.iloc[train_test_boundary[0]:train_test_boundary[1]].index, data=predictions,
                                   columns=['label_num_people_11_30']) # to bring the predicted for 11:30 into tbe same format as the estimator was trained on
     menus_predictions = num_menus_estimator.predict(df_predictions)
-    df_predictions = pd.DataFrame(index=features_df.iloc[train_test_boundary:].index, data=menus_predictions,
+    df_predictions = pd.DataFrame(index=features_df.iloc[train_test_boundary[0]:train_test_boundary[1]].index, data=menus_predictions,
                                   columns=['predictions'])
-    df = features_df.iloc[train_test_boundary:]['label_num_menus_sold'].copy()
+    df = features_df.iloc[train_test_boundary[0]: train_test_boundary[1]]['label_num_menus_sold'].copy()
     df_predictions = df_predictions.join(df)
     df3 = df_predictions.dropna(axis=0)
     return eval_metrics(df3['predictions'], df3['label_num_menus_sold']), df_predictions
@@ -93,9 +107,8 @@ if __name__ == '__main__':
     pickle_path = os.path.join('..', '..', 'data', 'features_by_date')
     features_by_date = pd.read_pickle(pickle_path)
 
-    train_test_boundary = 100
-    exog_feature_list = [
-        'zuehlke_day']  # 'zuehlke_day''Rain_binary','Spring/Autumn','Summer','Winter','zurich_vacation', 'zuehlke_day', 'Monday','Tuesday','Wednesday','Thursday','Friday','month_quarter_0'(1,2,3)
+    train_test_boundary = (150,min(len(features_by_date),202))
+    exog_feature_list = ['zuehlke_day','before_after_holydays']  # 'day_after_zuehlke_day', 'day_before_zuehlke_day', 'holydays', 'before_after_holydays','zuehlke_day''Rain_binary','Spring/Autumn','Summer','Winter','zurich_vacation', 'zuehlke_day', 'Monday','Tuesday','Wednesday','Thursday','Friday','month_quarter_0'(1,2,3)
     hyperparameter_opt = False
     if hyperparameter_opt:
 
@@ -134,7 +147,9 @@ if __name__ == '__main__':
 
         (menus_rmse, menus_mae, menus_r2, menus_maloge),menus_predictions = num_menus_sold_error(predictions, train_test_boundary,
                                                                              features_by_date)
-
+        model_filename=os.path.join('pickled_models','sarimax_features_to_11_30_people_count.pkl')
+        with open(model_filename, 'wb') as pkl:
+            pickle.dump(res, pkl)
         mlflow.log_metric(" menus_rmse", menus_rmse)
         mlflow.log_metric(" menus_mae", menus_mae)
         mlflow.log_metric("rmse", rmse)
@@ -144,6 +159,9 @@ if __name__ == '__main__':
         mlflow.log_metric('aic', aic)
 
         mlflow.log_params(best_params)
+        mlflow.log_param('train_test_boundary_start',train_test_boundary[0])
+        mlflow.log_param('train_test_boundary_end',train_test_boundary[1])
+
         mlflow.log_param('exog_features',
                          {'exog_features': exog_feature_list})
 
@@ -151,5 +169,5 @@ if __name__ == '__main__':
             f.write(res.summary().as_text())
         mlflow.log_artifact('model_summary.txt')
 
-        with open(os.path.join('predictions_future_days', 'sarimax_num_menus.pkl'), 'wb') as file:  # num_features[0] + '_to_' + label[0] + '
+        with open(os.path.join('predictions_future_days', 'sarimax_num_menus.pkl'), 'wb') as file:
             pickle.dump(menus_predictions, file)

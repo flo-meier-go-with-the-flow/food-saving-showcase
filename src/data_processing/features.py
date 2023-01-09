@@ -190,7 +190,7 @@ if __name__ == '__main__':
     before_after_holydays = [
         date(year=2022, month=4, day=14),
         date(year=2022, month=4, day=19),
-        #date(year=2022, month=5, day=1), this is a sunday in 2022
+        # date(year=2022, month=5, day=1), this is a sunday in 2022
         date(year=2022, month=5, day=25),
         date(year=2022, month=5, day=30),
         date(year=2022, month=6, day=3),
